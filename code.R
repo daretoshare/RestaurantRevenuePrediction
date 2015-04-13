@@ -35,7 +35,7 @@ registerDoSNOW(cl)
 ## fitting a Gradient Boosting Machine with 5 CV training control
 set.seed(1)
 glmFit <- train(revenue ~ ., data = train2,
-               method = "glmnet",
+               method = "gbm",
                trControl = fitControl
 #                tuneGrid =eGrid
               )
