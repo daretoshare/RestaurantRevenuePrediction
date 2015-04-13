@@ -46,7 +46,7 @@ set.seed(1)
 #Random Forest
 model <- train(revenue~., 
                data=myData[1:n.train, c(important$finalDecision != "Rejected", TRUE)],
-               method = "rf",
+               method = "QdaCov",
                trControl = fitControl)
 
 stopCluster(cl)
