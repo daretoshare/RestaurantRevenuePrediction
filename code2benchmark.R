@@ -1,5 +1,6 @@
 library(Boruta)
 library(caret)
+library(doSNOW)
 
 train <- read.csv("data/train.csv")
 test  <- read.csv("data/test.csv")
@@ -30,7 +31,7 @@ myData$Type <- as.factor(myData$Type)
 #Log Transform P Variables and Revenue
 myData[, paste("P", 1:37, sep="")] <- log(1 +myData[, paste("P", 1:37, sep="")])
 
-myData$revenue <- log(myData$revenue)
+myData$revenue <- 1/(log(myData$revenue))
 
 important <- Boruta(revenue~., data=myData[1:n.train, ])
 
@@ -40,20 +41,27 @@ fitControl <- trainControl(
   ## repeated ten times
   repeats = 10)
 
+rfGrid <-  expand.grid(mtry=(2:10))
+
+
 cl <- makeCluster(3)
 registerDoSNOW(cl)
 set.seed(1)
 #Random Forest
 model <- train(revenue~., 
                data=myData[1:n.train, c(important$finalDecision != "Rejected", TRUE)],
-               method = "QdaCov",
+               method = "rf",
                trControl = fitControl)
+#,         tuneGrid = rfGrid)
+
 
 stopCluster(cl)
 #Make a Prediction
 prediction <- predict(model, myData[-c(1:n.train), ])
 
 #Make Submission
-submit<-as.data.frame(cbind(seq(0, length(prediction) - 1, by=1), exp(prediction)))
+submit<-as.data.frame(cbind(seq(0, length(prediction) - 1, by=1), exp(1)^(1/prediction)))
 colnames(submit)<-c("Id","Prediction")
-write.csv(submit,"submission.csv",row.names=FALSE,quote=FALSE)
+write.csv(submit,"submission_rrf.csv",row.names=FALSE,quote=FALSE)
+
+save(model, file="rfonebylog.RData")
