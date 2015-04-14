@@ -50,7 +50,7 @@ set.seed(1)
 #Random Forest
 model <- train(revenue~., 
                data=myData[1:n.train, c(important$finalDecision != "Rejected", TRUE)],
-               method = "rf",
+               method = "RRF",
                trControl = fitControl)
 #,         tuneGrid = rfGrid)
 
@@ -62,6 +62,6 @@ prediction <- predict(model, myData[-c(1:n.train), ])
 #Make Submission
 submit<-as.data.frame(cbind(seq(0, length(prediction) - 1, by=1), exp(1)^(1/prediction)))
 colnames(submit)<-c("Id","Prediction")
-write.csv(submit,"submission_rrf.csv",row.names=FALSE,quote=FALSE)
+write.csv(submit,"submission_rrf2.csv",row.names=FALSE,quote=FALSE)
 
-save(model, file="rfonebylog.RData")
+save(model, file="rrf.RData")
