@@ -31,15 +31,17 @@ myData$Type <- as.factor(myData$Type)
 #Log Transform P Variables and Revenue
 myData[, paste("P", 1:37, sep="")] <- log(1 +myData[, paste("P", 1:37, sep="")])
 
+pp<-preProcess(myData[, paste("P", 1:37, sep="")])
+myData[, paste("P", 1:37, sep="")]<-predict(pp, myData[, paste("P", 1:37, sep="")])
 myData$revenue <- 1/(log(myData$revenue))
 
 important <- Boruta(revenue~., data=myData[1:n.train, ])
 
 fitControl <- trainControl(
   method = "repeatedcv",
-  number = 10,
+  number = 5,
   ## repeated ten times
-  repeats = 10)
+  repeats = 5)
 
 rfGrid <-  expand.grid(mtry=(2:10))
 
@@ -50,18 +52,22 @@ set.seed(1)
 #Random Forest
 model <- train(revenue~., 
                data=myData[1:n.train, c(important$finalDecision != "Rejected", TRUE)],
+ #              data=myData[1:n.train,],
+#               data=myData[1:n.train,],
                method = "RRF",
+ #             preProcess=c("center","scale"),
                trControl = fitControl)
+              
 #,         tuneGrid = rfGrid)
 
 
 stopCluster(cl)
 #Make a Prediction
 prediction <- predict(model, myData[-c(1:n.train), ])
-
+prediction<-prediction/100
 #Make Submission
 submit<-as.data.frame(cbind(seq(0, length(prediction) - 1, by=1), exp(1)^(1/prediction)))
 colnames(submit)<-c("Id","Prediction")
-write.csv(submit,"submission_rrf2.csv",row.names=FALSE,quote=FALSE)
+write.csv(submit,"submission_RRF.csv",row.names=FALSE,quote=FALSE)
 
-save(model, file="rrf.RData")
+save(model, file="RRF26.RData")
