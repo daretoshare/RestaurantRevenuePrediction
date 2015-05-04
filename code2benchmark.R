@@ -4,11 +4,17 @@ library(doSNOW)
 
 train <- read.csv("data/train.csv")
 test  <- read.csv("data/test.csv")
-
+cityCW  <- read.csv("data/city_CW.csv")
+train<-merge(train, cityCW, by="City", all.x = TRUE)
+test<-merge(test, cityCW, by="City", all.x = TRUE)
 n.train <- nrow(train)
 
+train$City<-train$City2
+test$City<-test$City2
+train$City2<-NULL
+test$City2<-NULL
 test$revenue <- 1
-myData <- rbind(train, test)
+myData<-rbind(train,test)
 rm(train, test)
 
 #Tranform Time
@@ -27,15 +33,16 @@ myData$Type <- as.character(myData$Type)
 myData$Type[myData$Type=="DT"] <- "IL"
 myData$Type[myData$Type=="MB"] <- "FC"
 myData$Type <- as.factor(myData$Type)
+myData$Id<-NULL
 
 #Log Transform P Variables and Revenue
 myData[, paste("P", 1:37, sep="")] <- log(1 +myData[, paste("P", 1:37, sep="")])
 
 pp<-preProcess(myData[, paste("P", 1:37, sep="")])
 myData[, paste("P", 1:37, sep="")]<-predict(pp, myData[, paste("P", 1:37, sep="")])
-myData$revenue <- 1/(log(myData$revenue))
-
-important <- Boruta(revenue~., data=myData[1:n.train, ])
+myData$revenue <- sqrt(log(myData$revenue))
+myData$City2 <- NULL
+important <- Boruta(revenue~., data=dat[1:n.train, ])
 
 fitControl <- trainControl(
   method = "repeatedcv",
@@ -51,8 +58,9 @@ registerDoSNOW(cl)
 set.seed(1)
 #Random Forest
 model <- train(revenue~., 
-               data=myData[1:n.train, c(important$finalDecision != "Rejected", TRUE)],
- #              data=myData[1:n.train,],
+     #          data=dat[1:n.train, c(important$finalDecision != "Rejected", TRUE)],
+        #       data=myData[1:n.train, c(important$finalDecision != "Rejected", TRUE)],
+          data=dat[1:n.train,],
 #               data=myData[1:n.train,],
                method = "RRF",
  #             preProcess=c("center","scale"),
@@ -63,11 +71,30 @@ model <- train(revenue~.,
 
 stopCluster(cl)
 #Make a Prediction
-prediction <- predict(model, myData[-c(1:n.train), ])
-prediction<-prediction/100
+prediction <- predict(model, dat[-c(1:n.train), ])
+prediction<-prediction**2
+prediction<-exp(prediction)
 #Make Submission
-submit<-as.data.frame(cbind(seq(0, length(prediction) - 1, by=1), exp(1)^(1/prediction)))
+submit<-as.data.frame(cbind(seq(0, length(prediction) - 1, by=1), prediction))
 colnames(submit)<-c("Id","Prediction")
-write.csv(submit,"submission_RRF.csv",row.names=FALSE,quote=FALSE)
+write.csv(submit,"submission427145.csv",row.names=FALSE,quote=FALSE)
 
 save(model, file="RRF26.RData")
+
+
+
+library(reshape)
+d <- melt(test[,-c(1:5)])
+
+ggplot(d,aes(x = value)) + 
+  facet_wrap(~variable,scales = "free_x") + 
+  geom_histogram()
+
+for (i in 1:37){
+
+myData$Pi<-as.factor(myData$Pi)
+}
+
+library(dplyr)
+dat <- mutate_each(myData, funs(factor), c(P1,P5:P12,P14:P25,P30:P37))
+
